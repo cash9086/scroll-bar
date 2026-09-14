@@ -2,10 +2,15 @@
  *  Indicatore di scroll verticale sul lato destro, in sostituzione della
  *  scrollbar nativa del browser.
  *
- *  Filo di 1px che si allarga a 5px quando il puntatore si avvicina al bordo.
- *  Progresso pieno su binario grigio chiaro. All'orlo del riempimento un
- *  numero in percentuale, ruotato sul fianco, che dice la posizione di scroll.
- *  Su fondo chiaro e' #141416, su fondo scuro diventa #ffffff.
+ *  Una colonna stretta di grigio chiaro. Il progresso la riempie di nero
+ *  dall'alto, e il numero in percentuale sta DENTRO la colonna, appoggiato
+ *  al bordo inferiore del nero: mentre scorri il nero cresce e se lo spinge
+ *  davanti, verso il basso; risalendo, il nero si ritira e il numero torna
+ *  su. Negli ultimi punti percentuali il numero non ha piu' spazio sotto,
+ *  quindi si ferma sul fondo e il nero gli passa sopra: dove lo copre, le
+ *  cifre si stampano in negativo, una colonna di pixel alla volta.
+ *
+ *  Su fondo chiaro la colonna e' #141416, su fondo scuro diventa #ffffff.
  *
  *  Si aggancia a Lenis se c'e', se no allo scroll nativo.
  *  Rileva il fondo con la stessa logica dell'header (elementsFromPoint +
@@ -24,37 +29,35 @@
   /* ====================================================================
      CONFIGURAZIONE
      Si puo' sovrascrivere PRIMA di caricare lo script:
-       <script>window.CAPE_RAIL = { x: 30, mobile: false };</script>
+       <script>window.CAPE_RAIL = { w: 16, mobile: false };</script>
      ==================================================================== */
   var CFG = {
     x         : 22,        /* px dal bordo destro                          */
-    inset     : '14vh',    /* aria sopra e sotto l'asta                     */
-    w         : 1,         /* px, spessore a riposo                         */
-    wHover    : 5,         /* px, spessore col puntatore vicino             */
+    inset     : '14vh',    /* aria sopra e sotto la colonna                 */
+    w         : 13,        /* px, larghezza della colonna a riposo.
+                              Sotto i ~12px il numero ruotato non ci sta.   */
+    wHover    : 20,        /* px, larghezza col puntatore vicino            */
     num       : 10,        /* px, corpo del numero a riposo                 */
     numHover  : 13,        /* px, corpo del numero in hover                 */
-    gap       : 11,        /* px, distanza numero <-> filo a riposo         */
-    gapHover  : 15,        /* px, distanza in hover                         */
+    pad       : 5,         /* px, aria fra l'orlo del nero e il numero      */
     zone      : 30,        /* px, larghezza della zona sensibile dal bordo  */
     z         : 2147483000,/* sotto #capecur (2147483647)                   */
     mobile    : true,      /* mostrarla anche sotto i 992px                 */
-    drag      : true,      /* trascinare l'asta per scorrere                */
+    drag      : true,      /* trascinare la colonna per scorrere            */
 
-    ink       : '#141416', /* il filo su fondo chiaro                       */
-    snow      : '#ffffff', /* il filo su fondo scuro                        */
-    trkLight  : 'rgba(20,20,22,.16)',    /* binario su fondo chiaro         */
-    trkDark   : 'rgba(255,255,255,.20)', /* binario su fondo scuro          */
-    numLight  : 'rgba(20,20,22,.62)',    /* numero a riposo, fondo chiaro   */
-    numDark   : 'rgba(255,255,255,.68)', /* numero a riposo, fondo scuro    */
+    ink       : '#141416', /* il pieno su fondo chiaro                      */
+    snow      : '#ffffff', /* il pieno su fondo scuro                       */
+    trkLight  : 'rgba(20,20,22,.13)',    /* colonna vuota su fondo chiaro   */
+    trkDark   : 'rgba(255,255,255,.18)', /* colonna vuota su fondo scuro    */
 
     font      : "'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif",
-    track     : '.14em',   /* letter-spacing del numero                     */
+    track     : '.12em',   /* letter-spacing del numero                     */
 
     toLight   : 0.45,      /* isteresi: sotto questa luminanza -> inverti   */
     toDark    : 0.60,      /* sopra questa -> torna normale                 */
 
     fade      : '.45s cubic-bezier(.16,1,.3,1)',  /* colore, come l'header  */
-    snap      : '.34s cubic-bezier(.16,1,.3,1)'   /* spessore e posizione   */
+    snap      : '.34s cubic-bezier(.16,1,.3,1)'   /* larghezza e corpo      */
   };
   if (window.CAPE_RAIL) {
     for (var k in window.CAPE_RAIL) {
@@ -68,9 +71,6 @@
 
   /* ====================================================================
      FOGLIO DI STILE
-     Iniettato in testa, cosi' una regola del sito con la stessa specificita'
-     scritta dopo vince: se un domani vuoi correggere qualcosa dal custom
-     code di pagina, ti basta riscrivere la classe.
      ==================================================================== */
   var css = [
     /* la scrollbar nativa sparisce. Su html, non su body: il sito ha gia'
@@ -84,17 +84,16 @@
       'z-index:' + CFG.z + ';pointer-events:none;',
       'opacity:0;transition:opacity .4s ease;',
       '--x:' + CFG.x + 'px;--in:' + CFG.inset + ';',
-      '--w:' + CFG.w + 'px;--n:' + CFG.num + 'px;--g:' + CFG.gap + 'px;',
-      '--trk:' + CFG.trkLight + ';--fil:' + CFG.ink + ';--txt:' + CFG.numLight + ';',
+      '--w:' + CFG.w + 'px;--n:' + CFG.num + 'px;--numH:34px;',
+      '--trk:' + CFG.trkLight + ';--fil:' + CFG.ink + ';--neg:' + CFG.snow + ';',
     '}',
     '.cape-rail.is-ready{opacity:1}',
 
-    /* fondo scuro: filo bianco, binario bianco trasparente */
-    '.cape-rail.is-inv{--trk:' + CFG.trkDark + ';--fil:' + CFG.snow + ';--txt:' + CFG.numDark + '}',
+    /* fondo scuro: il pieno diventa bianco e il negativo diventa scuro */
+    '.cape-rail.is-inv{--trk:' + CFG.trkDark + ';--fil:' + CFG.snow + ';--neg:' + CFG.ink + '}',
 
-    /* puntatore vicino: si allarga e il numero cresce */
-    '.cape-rail.is-near{--w:' + CFG.wHover + 'px;--n:' + CFG.numHover + 'px;--g:' + CFG.gapHover + 'px}',
-    '.cape-rail.is-near{--txt:var(--fil)}',
+    /* puntatore vicino: la colonna si allarga e il numero cresce con lei */
+    '.cape-rail.is-near{--w:' + CFG.wHover + 'px;--n:' + CFG.numHover + 'px}',
 
     /* la zona sensibile e' trasparente ai click finche' il puntatore non
        entra davvero nei pochi px di bordo: cosi' non ruba mai un click a
@@ -104,22 +103,45 @@
 
     '.cape-rail__trk{',
       'position:fixed;right:var(--x);top:var(--in);bottom:var(--in);',
-      'width:var(--w);background:var(--trk);',
+      'width:var(--w);background:var(--trk);overflow:hidden;',
       'transition:width ' + snap + ',background-color ' + fade + ';',
     '}',
+
+    /* il pieno. Niente transizione sull'altezza: deve stare incollato allo
+       scroll, non inseguirlo */
     '.cape-rail__fil{',
-      'position:absolute;right:0;top:0;width:100%;height:0;',
+      'position:absolute;left:0;top:0;width:100%;height:0;',
       'background:var(--fil);transition:background-color ' + fade + ';',
     '}',
+
+    /* Due corsie sovrapposte, identiche, con lo stesso numero nello stesso
+       punto. Quella di sotto e' scritta nel colore del pieno e si legge sul
+       grigio; quella di sopra e' nel colore opposto ed e' ritagliata
+       esattamente sull'altezza del pieno. Dove il nero copre le cifre si
+       vede la seconda, dove non arriva si vede la prima. Il passaggio
+       avviene per colonne di pixel mentre l'orlo scorre sopra il numero:
+       un solo elemento con un colore solo dovrebbe scattare di netto a
+       meta' strada, e si vedrebbe. */
+    '.cape-rail__lane{position:absolute;inset:0;pointer-events:none}',
+    '.cape-rail__lane--neg{clip-path:inset(0 0 100% 0)}',
+
     '.cape-rail__num{',
-      'position:fixed;right:calc(var(--x) + var(--w) + var(--g));top:0;',
-      'font-family:' + CFG.font + ';font-weight:400;font-size:var(--n);line-height:1;',
+      'position:absolute;left:0;top:0;width:100%;height:var(--numH);',
+      'font-family:' + CFG.font + ';font-weight:400;',
+      'font-size:var(--n);line-height:var(--w);',   /* in verticale la
+                                                        line-height e' la
+                                                        larghezza: pari a
+                                                        quella della colonna,
+                                                        il numero ci si
+                                                        centra da solo */
       'letter-spacing:' + CFG.track + ';font-variant-numeric:tabular-nums;',
-      'color:var(--txt);white-space:nowrap;',
+      'text-align:center;white-space:nowrap;',
       'writing-mode:vertical-rl;text-orientation:mixed;',
-      'transform:translateY(-50%) rotate(180deg);transform-origin:center;',
-      'transition:color ' + fade + ',font-size ' + snap + ',right ' + snap + ';',
-    '}'
+      'transform:rotate(180deg);transform-origin:center;',
+      'color:var(--fil);',
+      'transition:color ' + fade + ',font-size ' + snap + ',line-height ' + snap + ';',
+    '}',
+    '.cape-rail__lane--neg .cape-rail__num{color:var(--neg)}'
   ].join('');
 
   if (!CFG.mobile) {
@@ -139,12 +161,22 @@
   var rail = document.createElement('div');
   rail.className = 'cape-rail';
   rail.setAttribute('aria-hidden', 'true');   /* la percentuale e' un doppione
-                                                 dello scroll: lo screen reader
-                                                 lo conosce gia' */
+                                                 dello scroll, che lo screen
+                                                 reader conosce gia' */
   rail.innerHTML =
     '<div class="cape-rail__zone"></div>' +
-    '<div class="cape-rail__trk"><div class="cape-rail__fil"></div></div>' +
-    '<div class="cape-rail__num">0%</div>';
+    '<div class="cape-rail__trk">' +
+      '<div class="cape-rail__fil"></div>' +
+      '<div class="cape-rail__lane"><div class="cape-rail__num">0%</div></div>' +
+      '<div class="cape-rail__lane cape-rail__lane--neg"><div class="cape-rail__num">0%</div></div>' +
+    '</div>';
+
+  var zone  = rail.querySelector('.cape-rail__zone');
+  var track = rail.querySelector('.cape-rail__trk');
+  var fill  = rail.querySelector('.cape-rail__fil');
+  var laneN = rail.querySelector('.cape-rail__lane--neg');
+  var numA  = rail.querySelectorAll('.cape-rail__num')[0];
+  var numB  = rail.querySelectorAll('.cape-rail__num')[1];
 
   function mount() {
     document.body.appendChild(rail);
@@ -152,22 +184,31 @@
     requestAnimationFrame(function () { rail.classList.add('is-ready'); });
   }
 
-  var zone  = rail.querySelector('.cape-rail__zone');
-  var track = rail.querySelector('.cape-rail__trk');
-  var fill  = rail.querySelector('.cape-rail__fil');
-  var num   = rail.querySelector('.cape-rail__num');
-
   /* ====================================================================
      GEOMETRIA
-     Misurata una volta per relayout, non a ogni frame: il rettangolo
-     dell'asta cambia solo se cambia la finestra.
      ==================================================================== */
-  var geo = { top: 0, len: 1, x: 0 };
+  var geo  = { top: 0, len: 1, x: 0 };
+  var numH = 34;
+
   function measure() {
     var r = track.getBoundingClientRect();
     geo.top = r.top;
     geo.len = r.height || 1;
     geo.x   = r.left + r.width / 2;
+  }
+
+  /* L'altezza del numero e' fissata sulla stringa piu' lunga che puo'
+     capitare, "100%". Se la lasciassimo libera, il box cambierebbe misura
+     passando da "9%" a "10%" e il numero sobbalzerebbe a ogni decina. */
+  function measureNum() {
+    var prev = numA.textContent;
+    numA.style.height = 'auto';
+    numA.textContent = '100%';
+    var h = Math.ceil(numA.getBoundingClientRect().height) || 34;
+    numA.style.height = '';
+    numA.textContent = prev;
+    numH = h;
+    rail.style.setProperty('--numH', h + 'px');
   }
 
   function maxScroll() {
@@ -182,9 +223,9 @@
 
   /* ====================================================================
      CHIARO O SCURO
-     Stessa identica logica dell'header: tre sonde lungo l'asta, luminanza
-     WCAG, isteresi per non far sfarfallare il colore nella zona di mezzo.
-     Vale anche l'override data-hdr="dark" | "light" sulle sezioni.
+     Stessa identica logica dell'header: tre sonde lungo la colonna,
+     luminanza WCAG, isteresi per non far sfarfallare il colore nella zona
+     di mezzo. Vale anche l'override data-hdr="dark" | "light".
      ==================================================================== */
   var inv = null;
 
@@ -239,20 +280,38 @@
 
   /* ====================================================================
      DISEGNO
-     Due scritture per frame, nessuna lettura di layout: niente reflow.
+     Il numero si appoggia all'orlo inferiore del pieno e da li' viene
+     spinto in giu'. Quando sotto non resta piu' spazio si ferma sul fondo
+     della colonna e il pieno gli scorre sopra.
      ==================================================================== */
   var shown = -1;
   var lastProbe = 0;
 
   function paint() {
-    var p = progress();
-    fill.style.height = (p * 100) + '%';
+    var p  = progress();
+    var L  = geo.len;
+    var fh = p * L;
 
-    var y = geo.top + geo.len * p;
-    num.style.top = y + 'px';
+    fill.style.height = fh + 'px';
+
+    var pad = CFG.pad;
+    var top = fh + pad;
+    var lim = L - numH - pad;           /* oltre questo, il numero uscirebbe */
+    if (lim < pad) lim = pad;           /* colonna piu' corta del numero     */
+    if (top > lim) top = lim;
+    if (top < pad) top = pad;
+
+    numA.style.top = top + 'px';
+    numB.style.top = top + 'px';
+
+    /* la corsia in negativo tenuta esattamente sull'altezza del pieno */
+    laneN.style.clipPath = 'inset(0 0 ' + Math.max(0, L - fh) + 'px 0)';
 
     var pc = Math.round(p * 100);
-    if (pc !== shown) { num.textContent = pc + '%'; shown = pc; }
+    if (pc !== shown) {
+      numA.textContent = numB.textContent = pc + '%';
+      shown = pc;
+    }
 
     /* La sonda del fondo costa tre hit-test: a 60fps, su una pagina che sta
        gia' animando il rig orizzontale e il ponte, si sente. La transizione
@@ -321,22 +380,25 @@
 
   /* ====================================================================
      HOVER PER PROSSIMITA'
-     Non si usa :hover sull'asta: un filo di 1px non si azzecca col mouse.
-     Si guarda la distanza dal bordo destro, e solo allora la zona diventa
-     cliccabile.
+     Non si usa :hover sulla colonna: e' stretta e la si manca. Si guarda
+     la distanza dal bordo destro, e solo allora la zona diventa cliccabile.
      ==================================================================== */
   var near = false;
+
   function onPointer(e) {
     var n = (innerWidth - e.clientX) <= CFG.zone;
     if (n === near) return;
     near = n;
     rail.classList.toggle('is-near', n);
-    requestAnimationFrame(function () { measure(); tick(); });
+    /* il corpo del numero cambia con l'hover, quindi cambia anche la sua
+       altezza: va rimisurata, se no il fondo colonna sballa di qualche px */
+    requestAnimationFrame(function () { measure(); measureNum(); paint(); });
   }
   function onLeave() {
     if (!near) return;
     near = false; rail.classList.remove('is-near');
   }
+
   addEventListener('mousemove', onPointer, { passive: true });
   /* su documentElement, non su window: window non emette mouseleave */
   document.documentElement.addEventListener('mouseleave', onLeave, { passive: true });
@@ -344,11 +406,11 @@
   /* ====================================================================
      RICALCOLI
      Il documento cambia altezza da solo: rig orizzontale, ponte, ink-pin.
-     Un ResizeObserver sul body se ne accorge senza doverlo interrogare.
+     Un ResizeObserver se ne accorge senza doverlo interrogare.
      ==================================================================== */
   var rT = null;
   function relayout() {
-    measure(); paint();
+    measure(); measureNum(); paint();
   }
   function debounced() {
     clearTimeout(rT);
