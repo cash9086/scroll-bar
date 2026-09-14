@@ -35,7 +35,7 @@ primo paint la pagina salterebbe di ~15px.
 
 ```html
 <!-- Site settings > Custom code > Footer code -->
-<script defer src="https://cdn.jsdelivr.net/gh/cash9086/scroll-bar@af6658e87636d9155a1ec0a7953741c5d0ecf309/cape-scroll-rail.js"></script>
+<script defer src="https://cdn.jsdelivr.net/gh/cash9086/scroll-bar@810257c7e7b9890e61bb43681b4877485292f41e/cape-scroll-rail.js"></script>
 ```
 
 Pinnare l'URL a un commit invece che a `@main` lo rende immutabile, quindi
