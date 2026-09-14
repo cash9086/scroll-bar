@@ -2,15 +2,19 @@
  *  Indicatore di scroll verticale sul lato destro, in sostituzione della
  *  scrollbar nativa del browser.
  *
- *  Una colonna stretta di grigio chiaro. Il progresso la riempie di nero
- *  dall'alto, e il numero in percentuale sta DENTRO la colonna, appoggiato
- *  al bordo inferiore del nero: mentre scorri il nero cresce e se lo spinge
- *  davanti, verso il basso; risalendo, il nero si ritira e il numero torna
- *  su. Negli ultimi punti percentuali il numero non ha piu' spazio sotto,
- *  quindi si ferma sul fondo e il nero gli passa sopra: dove lo copre, le
- *  cifre si stampano in negativo, una colonna di pixel alla volta.
+ *  Un filo di 1px, grigio chiaro, che si allarga a 5px quando il puntatore
+ *  si avvicina al bordo. Il progresso lo riempie di nero dall'alto. Il
+ *  numero in percentuale sta dritto, orizzontale, centrato sul filo, subito
+ *  sotto l'orlo del nero: scorrendo, il nero cresce e se lo spinge davanti
+ *  verso il basso; risalendo, il nero si ritira e il numero torna su.
  *
- *  Su fondo chiaro la colonna e' #141416, su fondo scuro diventa #ffffff.
+ *  Il filo si interrompe dove passa il numero. Non e' il numero ad avere un
+ *  fondo che copre il filo — quello funzionerebbe solo su un colore noto, e
+ *  qui sotto ci passano bianco, notte e fotografie. E' il filo ad avere un
+ *  buco vero, ritagliato con una maschera: nel buco non c'e' niente, e il
+ *  numero si legge su qualunque cosa ci sia sotto.
+ *
+ *  Su fondo chiaro filo e numero sono #141416, su fondo scuro #ffffff.
  *
  *  Si aggancia a Lenis se c'e', se no allo scroll nativo.
  *  Rileva il fondo con la stessa logica dell'header (elementsFromPoint +
@@ -29,35 +33,39 @@
   /* ====================================================================
      CONFIGURAZIONE
      Si puo' sovrascrivere PRIMA di caricare lo script:
-       <script>window.CAPE_RAIL = { w: 16, mobile: false };</script>
+       <script>window.CAPE_RAIL = { x: 30, mobile: false };</script>
      ==================================================================== */
   var CFG = {
-    x         : 22,        /* px dal bordo destro                          */
-    inset     : '14vh',    /* aria sopra e sotto la colonna                 */
-    w         : 13,        /* px, larghezza della colonna a riposo.
-                              Sotto i ~12px il numero ruotato non ci sta.   */
-    wHover    : 20,        /* px, larghezza col puntatore vicino            */
+    x         : 26,        /* px dal bordo destro, misurati sul filo.
+                              Il numero e' centrato sul filo, quindi deborda
+                              di meta' larghezza verso il bordo: sotto i 22
+                              comincia a toccarlo.                          */
+    inset     : '14vh',    /* aria sopra e sotto il filo                    */
+    w         : 1,         /* px, spessore a riposo                         */
+    wHover    : 5,         /* px, spessore col puntatore vicino             */
     num       : 10,        /* px, corpo del numero a riposo                 */
     numHover  : 13,        /* px, corpo del numero in hover                 */
-    pad       : 5,         /* px, aria fra l'orlo del nero e il numero      */
+    pad       : 6,         /* px, aria fra l'orlo del nero e il numero, e
+                              altrettanta sotto il numero prima che il filo
+                              ricominci                                     */
     zone      : 30,        /* px, larghezza della zona sensibile dal bordo  */
     z         : 2147483000,/* sotto #capecur (2147483647)                   */
-    mobile    : true,      /* mostrarla anche sotto i 992px                 */
-    drag      : true,      /* trascinare la colonna per scorrere            */
+    mobile    : true,      /* mostrarlo anche sotto i 992px                 */
+    drag      : true,      /* trascinare il filo per scorrere               */
 
-    ink       : '#141416', /* il pieno su fondo chiaro                      */
-    snow      : '#ffffff', /* il pieno su fondo scuro                       */
-    trkLight  : 'rgba(20,20,22,.13)',    /* colonna vuota su fondo chiaro   */
-    trkDark   : 'rgba(255,255,255,.18)', /* colonna vuota su fondo scuro    */
+    ink       : '#141416', /* filo e numero su fondo chiaro                 */
+    snow      : '#ffffff', /* filo e numero su fondo scuro                  */
+    trkLight  : 'rgba(20,20,22,.16)',    /* filo vuoto su fondo chiaro      */
+    trkDark   : 'rgba(255,255,255,.22)', /* filo vuoto su fondo scuro       */
 
     font      : "'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif",
-    track     : '.12em',   /* letter-spacing del numero                     */
+    track     : '.10em',   /* letter-spacing del numero                     */
 
     toLight   : 0.45,      /* isteresi: sotto questa luminanza -> inverti   */
     toDark    : 0.60,      /* sopra questa -> torna normale                 */
 
     fade      : '.45s cubic-bezier(.16,1,.3,1)',  /* colore, come l'header  */
-    snap      : '.34s cubic-bezier(.16,1,.3,1)'   /* larghezza e corpo      */
+    snap      : '.34s cubic-bezier(.16,1,.3,1)'   /* spessore e corpo       */
   };
   if (window.CAPE_RAIL) {
     for (var k in window.CAPE_RAIL) {
@@ -84,15 +92,15 @@
       'z-index:' + CFG.z + ';pointer-events:none;',
       'opacity:0;transition:opacity .4s ease;',
       '--x:' + CFG.x + 'px;--in:' + CFG.inset + ';',
-      '--w:' + CFG.w + 'px;--n:' + CFG.num + 'px;--numH:34px;',
-      '--trk:' + CFG.trkLight + ';--fil:' + CFG.ink + ';--neg:' + CFG.snow + ';',
+      '--w:' + CFG.w + 'px;--n:' + CFG.num + 'px;--numW:30px;',
+      '--trk:' + CFG.trkLight + ';--fil:' + CFG.ink + ';',
     '}',
     '.cape-rail.is-ready{opacity:1}',
 
-    /* fondo scuro: il pieno diventa bianco e il negativo diventa scuro */
-    '.cape-rail.is-inv{--trk:' + CFG.trkDark + ';--fil:' + CFG.snow + ';--neg:' + CFG.ink + '}',
+    /* fondo scuro: filo e numero diventano bianchi */
+    '.cape-rail.is-inv{--trk:' + CFG.trkDark + ';--fil:' + CFG.snow + '}',
 
-    /* puntatore vicino: la colonna si allarga e il numero cresce con lei */
+    /* puntatore vicino: il filo si allarga e il numero cresce */
     '.cape-rail.is-near{--w:' + CFG.wHover + 'px;--n:' + CFG.numHover + 'px}',
 
     /* la zona sensibile e' trasparente ai click finche' il puntatore non
@@ -101,47 +109,37 @@
     '.cape-rail__zone{position:fixed;right:0;top:0;bottom:0;width:' + CFG.zone + 'px;pointer-events:none;touch-action:none}',
     '.cape-rail.is-near .cape-rail__zone{pointer-events:auto}',
 
+    /* Il filo. La maschera ci apre il buco in cui passa il numero: la
+       scrive paint() a ogni frame e vale per il grigio e per il nero
+       insieme, perche' il nero e' dentro questo elemento. */
     '.cape-rail__trk{',
       'position:fixed;right:var(--x);top:var(--in);bottom:var(--in);',
       'width:var(--w);background:var(--trk);overflow:hidden;',
+      '-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;',
+      '-webkit-mask-size:100% 100%;mask-size:100% 100%;',
       'transition:width ' + snap + ',background-color ' + fade + ';',
     '}',
 
-    /* il pieno. Niente transizione sull'altezza: deve stare incollato allo
+    /* il nero. Niente transizione sull'altezza: deve stare incollato allo
        scroll, non inseguirlo */
     '.cape-rail__fil{',
       'position:absolute;left:0;top:0;width:100%;height:0;',
       'background:var(--fil);transition:background-color ' + fade + ';',
     '}',
 
-    /* Due corsie sovrapposte, identiche, con lo stesso numero nello stesso
-       punto. Quella di sotto e' scritta nel colore del pieno e si legge sul
-       grigio; quella di sopra e' nel colore opposto ed e' ritagliata
-       esattamente sull'altezza del pieno. Dove il nero copre le cifre si
-       vede la seconda, dove non arriva si vede la prima. Il passaggio
-       avviene per colonne di pixel mentre l'orlo scorre sopra il numero:
-       un solo elemento con un colore solo dovrebbe scattare di netto a
-       meta' strada, e si vedrebbe. */
-    '.cape-rail__lane{position:absolute;inset:0;pointer-events:none}',
-    '.cape-rail__lane--neg{clip-path:inset(0 0 100% 0)}',
-
+    /* Il numero: dritto, centrato sul filo. Larghezza fissa su quella di
+       "100%", cosi' passando da 9% a 10% non si sposta di mezzo carattere. */
     '.cape-rail__num{',
-      'position:absolute;left:0;top:0;width:100%;height:var(--numH);',
+      'position:fixed;top:0;',
+      'right:calc(var(--x) + var(--w) / 2);',
+      'transform:translateX(50%);',
+      'width:var(--numW);text-align:center;',
       'font-family:' + CFG.font + ';font-weight:400;',
-      'font-size:var(--n);line-height:var(--w);',   /* in verticale la
-                                                        line-height e' la
-                                                        larghezza: pari a
-                                                        quella della colonna,
-                                                        il numero ci si
-                                                        centra da solo */
+      'font-size:var(--n);line-height:1;',
       'letter-spacing:' + CFG.track + ';font-variant-numeric:tabular-nums;',
-      'text-align:center;white-space:nowrap;',
-      'writing-mode:vertical-rl;text-orientation:mixed;',
-      'transform:rotate(180deg);transform-origin:center;',
-      'color:var(--fil);',
-      'transition:color ' + fade + ',font-size ' + snap + ',line-height ' + snap + ';',
-    '}',
-    '.cape-rail__lane--neg .cape-rail__num{color:var(--neg)}'
+      'color:var(--fil);white-space:nowrap;',
+      'transition:color ' + fade + ',font-size ' + snap + ',right ' + snap + ',width ' + snap + ';',
+    '}'
   ].join('');
 
   if (!CFG.mobile) {
@@ -165,18 +163,13 @@
                                                  reader conosce gia' */
   rail.innerHTML =
     '<div class="cape-rail__zone"></div>' +
-    '<div class="cape-rail__trk">' +
-      '<div class="cape-rail__fil"></div>' +
-      '<div class="cape-rail__lane"><div class="cape-rail__num">0%</div></div>' +
-      '<div class="cape-rail__lane cape-rail__lane--neg"><div class="cape-rail__num">0%</div></div>' +
-    '</div>';
+    '<div class="cape-rail__trk"><div class="cape-rail__fil"></div></div>' +
+    '<div class="cape-rail__num">0%</div>';
 
   var zone  = rail.querySelector('.cape-rail__zone');
   var track = rail.querySelector('.cape-rail__trk');
   var fill  = rail.querySelector('.cape-rail__fil');
-  var laneN = rail.querySelector('.cape-rail__lane--neg');
-  var numA  = rail.querySelectorAll('.cape-rail__num')[0];
-  var numB  = rail.querySelectorAll('.cape-rail__num')[1];
+  var num   = rail.querySelector('.cape-rail__num');
 
   function mount() {
     document.body.appendChild(rail);
@@ -188,7 +181,8 @@
      GEOMETRIA
      ==================================================================== */
   var geo  = { top: 0, len: 1, x: 0 };
-  var numH = 34;
+  var numH = 12;   /* altezza della riga del numero */
+  var numW = 30;   /* larghezza fissata su "100%"   */
 
   function measure() {
     var r = track.getBoundingClientRect();
@@ -197,18 +191,20 @@
     geo.x   = r.left + r.width / 2;
   }
 
-  /* L'altezza del numero e' fissata sulla stringa piu' lunga che puo'
+  /* La larghezza del numero e' fissata sulla stringa piu' lunga che puo'
      capitare, "100%". Se la lasciassimo libera, il box cambierebbe misura
-     passando da "9%" a "10%" e il numero sobbalzerebbe a ogni decina. */
+     passando da "9%" a "10%" e il numero, essendo centrato, scivolerebbe di
+     mezzo carattere a ogni decina. */
   function measureNum() {
-    var prev = numA.textContent;
-    numA.style.height = 'auto';
-    numA.textContent = '100%';
-    var h = Math.ceil(numA.getBoundingClientRect().height) || 34;
-    numA.style.height = '';
-    numA.textContent = prev;
-    numH = h;
-    rail.style.setProperty('--numH', h + 'px');
+    var prev = num.textContent;
+    num.style.width = 'auto';
+    num.textContent = '100%';
+    var r = num.getBoundingClientRect();
+    numW = Math.ceil(r.width) || 30;
+    numH = Math.ceil(r.height) || 12;
+    num.style.width = '';
+    num.textContent = prev;
+    rail.style.setProperty('--numW', numW + 'px');
   }
 
   function maxScroll() {
@@ -223,9 +219,9 @@
 
   /* ====================================================================
      CHIARO O SCURO
-     Stessa identica logica dell'header: tre sonde lungo la colonna,
-     luminanza WCAG, isteresi per non far sfarfallare il colore nella zona
-     di mezzo. Vale anche l'override data-hdr="dark" | "light".
+     Stessa identica logica dell'header: tre sonde lungo il filo, luminanza
+     WCAG, isteresi per non far sfarfallare il colore nella zona di mezzo.
+     Vale anche l'override data-hdr="dark" | "light" sulle sezioni.
      ==================================================================== */
   var inv = null;
 
@@ -280,9 +276,11 @@
 
   /* ====================================================================
      DISEGNO
-     Il numero si appoggia all'orlo inferiore del pieno e da li' viene
-     spinto in giu'. Quando sotto non resta piu' spazio si ferma sul fondo
-     della colonna e il pieno gli scorre sopra.
+     Il buco nel filo comincia esattamente dove finisce il nero: il nero
+     scende, si ferma, e subito sotto c'e' il numero. Quando il buco
+     arriverebbe a sporgere dal fondo si blocca li', e il nero da quel punto
+     in poi continua a crescere sotto il numero — dove pero' la maschera lo
+     cancella, quindi il numero resta leggibile fino al 100%.
      ==================================================================== */
   var shown = -1;
   var lastProbe = 0;
@@ -294,24 +292,25 @@
 
     fill.style.height = fh + 'px';
 
-    var pad = CFG.pad;
-    var top = fh + pad;
-    var lim = L - numH - pad;           /* oltre questo, il numero uscirebbe */
-    if (lim < pad) lim = pad;           /* colonna piu' corta del numero     */
+    var gapH = numH + CFG.pad * 2;
+    var top  = fh;
+    var lim  = L - gapH;
+    if (lim < 0) lim = 0;               /* filo piu' corto del numero */
     if (top > lim) top = lim;
-    if (top < pad) top = pad;
+    if (top < 0)   top = 0;
+    var bot = top + gapH;
 
-    numA.style.top = top + 'px';
-    numB.style.top = top + 'px';
+    var g = 'linear-gradient(to bottom,' +
+            '#000 0,#000 ' + top + 'px,' +
+            'rgba(0,0,0,0) ' + top + 'px,rgba(0,0,0,0) ' + bot + 'px,' +
+            '#000 ' + bot + 'px,#000 100%)';
+    track.style.webkitMaskImage = g;
+    track.style.maskImage = g;
 
-    /* la corsia in negativo tenuta esattamente sull'altezza del pieno */
-    laneN.style.clipPath = 'inset(0 0 ' + Math.max(0, L - fh) + 'px 0)';
+    num.style.top = (geo.top + top + CFG.pad) + 'px';
 
     var pc = Math.round(p * 100);
-    if (pc !== shown) {
-      numA.textContent = numB.textContent = pc + '%';
-      shown = pc;
-    }
+    if (pc !== shown) { num.textContent = pc + '%'; shown = pc; }
 
     /* La sonda del fondo costa tre hit-test: a 60fps, su una pagina che sta
        gia' animando il rig orizzontale e il ponte, si sente. La transizione
@@ -380,8 +379,9 @@
 
   /* ====================================================================
      HOVER PER PROSSIMITA'
-     Non si usa :hover sulla colonna: e' stretta e la si manca. Si guarda
-     la distanza dal bordo destro, e solo allora la zona diventa cliccabile.
+     Non si usa :hover sul filo: un capello di 1px non si azzecca col mouse.
+     Si guarda la distanza dal bordo destro, e solo allora la zona diventa
+     cliccabile.
      ==================================================================== */
   var near = false;
 
@@ -390,8 +390,8 @@
     if (n === near) return;
     near = n;
     rail.classList.toggle('is-near', n);
-    /* il corpo del numero cambia con l'hover, quindi cambia anche la sua
-       altezza: va rimisurata, se no il fondo colonna sballa di qualche px */
+    /* il corpo del numero cambia con l'hover, quindi cambiano anche le sue
+       misure: vanno riprese, se no il buco nel filo non gli sta piu' dietro */
     requestAnimationFrame(function () { measure(); measureNum(); paint(); });
   }
   function onLeave() {
