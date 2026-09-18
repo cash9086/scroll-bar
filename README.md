@@ -5,18 +5,9 @@ in sostituzione della scrollbar nativa del browser.
 
 Un filo di 1px, grigio chiaro, sul lato destro, che si allarga a 5px quando
 il puntatore si avvicina al bordo. Il progresso lo riempie di nero dall'alto.
-Il numero in percentuale sta dritto, orizzontale, centrato sul filo, subito
-sotto l'orlo del nero: scorrendo, il nero cresce e se lo spinge davanti verso
-il basso; risalendo, il nero si ritira e il numero torna su.
 
-Il filo si interrompe dove passa il numero. Non e' il numero ad avere un fondo
-che copre il filo — quello funzionerebbe solo su un colore noto, e qui sotto ci
-passano bianco, notte e fotografie. E' il filo ad avere un buco vero, ritagliato
-con una maschera: nel buco non c'e' niente, e il numero si legge su qualunque
-cosa ci sia sotto.
-
-Su fondo chiaro filo e numero sono `#141416`, su fondo scuro `#ffffff`. Il filo
-si puo' trascinare per scorrere.
+Su fondo chiaro il filo e' `#141416`, su fondo scuro `#ffffff`. Il filo si
+puo' trascinare per scorrere.
 
 ## Uso
 
@@ -49,13 +40,10 @@ che cambi.
 ```html
 <script>
   window.CAPE_RAIL = {
-    x        : 26,      // px dal bordo destro, misurati sul filo
+    x        : 26,      // px dal bordo destro
     inset    : '14vh',  // aria sopra e sotto il filo
     w        : 1,       // spessore del filo a riposo, px
     wHover   : 5,       // spessore col puntatore vicino, px
-    num      : 10,      // corpo del numero a riposo, px
-    numHover : 13,      // corpo del numero in hover, px
-    pad      : 6,       // aria fra l'orlo del nero e il numero, px
     zone     : 30,      // larghezza della zona sensibile, px
     mobile   : true,    // false: niente binario sotto i 992px,
                         // e li' torna la scrollbar nativa
@@ -90,18 +78,10 @@ che sta gia' animando, e la transizione di colore dura comunque 450ms.
 **Non ruba i click.** La zona sensibile a destra e' `pointer-events:none`
 finche' il puntatore non entra davvero nei 30px di bordo.
 
-**Il numero non sobbalza.** La larghezza del suo box e' fissata sulla stringa
-piu' lunga possibile, `100%`, misurata a runtime: essendo centrato sul filo,
-se fosse libera scivolerebbe di mezzo carattere passando da `9%` a `10%`.
-
-**Margine dal bordo.** `x` si misura sul filo, e il numero e' centrato su di
-esso: deborda quindi di meta' larghezza verso il bordo dello schermo. Sotto
-`x: 22` comincia a toccarlo.
-
 **Cursore custom.** Il binario sta a `z-index:2147483000`, sotto `#capecur`
 (2147483647), e non imposta nessun `cursor`: il sito forza `cursor:none` su
 desktop e verrebbe comunque annullato.
 
-**Accessibilita'.** L'asta e' `aria-hidden`: la percentuale e' un doppione
-dello scroll, che lo screen reader conosce gia'. `prefers-reduced-motion`
+**Accessibilita'.** L'asta e' `aria-hidden`: e' un doppione dello scroll, che
+lo screen reader conosce gia'. `prefers-reduced-motion`
 azzera le transizioni, non il binario.

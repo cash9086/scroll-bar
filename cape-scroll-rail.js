@@ -3,18 +3,9 @@
  *  scrollbar nativa del browser.
  *
  *  Un filo di 1px, grigio chiaro, che si allarga a 5px quando il puntatore
- *  si avvicina al bordo. Il progresso lo riempie di nero dall'alto. Il
- *  numero in percentuale sta dritto, orizzontale, centrato sul filo, subito
- *  sotto l'orlo del nero: scorrendo, il nero cresce e se lo spinge davanti
- *  verso il basso; risalendo, il nero si ritira e il numero torna su.
+ *  si avvicina al bordo. Il progresso lo riempie di nero dall'alto.
  *
- *  Il filo si interrompe dove passa il numero. Non e' il numero ad avere un
- *  fondo che copre il filo — quello funzionerebbe solo su un colore noto, e
- *  qui sotto ci passano bianco, notte e fotografie. E' il filo ad avere un
- *  buco vero, ritagliato con una maschera: nel buco non c'e' niente, e il
- *  numero si legge su qualunque cosa ci sia sotto.
- *
- *  Su fondo chiaro filo e numero sono #141416, su fondo scuro #ffffff.
+ *  Su fondo chiaro il filo e' #141416, su fondo scuro #ffffff.
  *
  *  Si aggancia a Lenis se c'e', se no allo scroll nativo.
  *  Rileva il fondo con la stessa logica dell'header (elementsFromPoint +
@@ -36,36 +27,25 @@
        <script>window.CAPE_RAIL = { x: 30, mobile: false };</script>
      ==================================================================== */
   var CFG = {
-    x         : 26,        /* px dal bordo destro, misurati sul filo.
-                              Il numero e' centrato sul filo, quindi deborda
-                              di meta' larghezza verso il bordo: sotto i 22
-                              comincia a toccarlo.                          */
+    x         : 26,        /* px dal bordo destro                           */
     inset     : '14vh',    /* aria sopra e sotto il filo                    */
     w         : 1,         /* px, spessore a riposo                         */
     wHover    : 5,         /* px, spessore col puntatore vicino             */
-    num       : 10,        /* px, corpo del numero a riposo                 */
-    numHover  : 13,        /* px, corpo del numero in hover                 */
-    pad       : 6,         /* px, aria fra l'orlo del nero e il numero, e
-                              altrettanta sotto il numero prima che il filo
-                              ricominci                                     */
     zone      : 30,        /* px, larghezza della zona sensibile dal bordo  */
     z         : 2147483000,/* sotto #capecur (2147483647)                   */
     mobile    : true,      /* mostrarlo anche sotto i 992px                 */
     drag      : true,      /* trascinare il filo per scorrere               */
 
-    ink       : '#141416', /* filo e numero su fondo chiaro                 */
-    snow      : '#ffffff', /* filo e numero su fondo scuro                  */
+    ink       : '#141416', /* filo su fondo chiaro                          */
+    snow      : '#ffffff', /* filo su fondo scuro                           */
     trkLight  : 'rgba(20,20,22,.16)',    /* filo vuoto su fondo chiaro      */
     trkDark   : 'rgba(255,255,255,.22)', /* filo vuoto su fondo scuro       */
-
-    font      : "'Jost', system-ui, -apple-system, 'Segoe UI', sans-serif",
-    track     : '.10em',   /* letter-spacing del numero                     */
 
     toLight   : 0.45,      /* isteresi: sotto questa luminanza -> inverti   */
     toDark    : 0.60,      /* sopra questa -> torna normale                 */
 
     fade      : '.45s cubic-bezier(.16,1,.3,1)',  /* colore, come l'header  */
-    snap      : '.34s cubic-bezier(.16,1,.3,1)'   /* spessore e corpo       */
+    snap      : '.34s cubic-bezier(.16,1,.3,1)'   /* spessore               */
   };
   if (window.CAPE_RAIL) {
     for (var k in window.CAPE_RAIL) {
@@ -92,16 +72,16 @@
       'z-index:' + CFG.z + ';pointer-events:none;',
       'opacity:0;transition:opacity .4s ease;',
       '--x:' + CFG.x + 'px;--in:' + CFG.inset + ';',
-      '--w:' + CFG.w + 'px;--n:' + CFG.num + 'px;--numW:30px;',
+      '--w:' + CFG.w + 'px;',
       '--trk:' + CFG.trkLight + ';--fil:' + CFG.ink + ';',
     '}',
     '.cape-rail.is-ready{opacity:1}',
 
-    /* fondo scuro: filo e numero diventano bianchi */
+    /* fondo scuro: il filo diventa bianco */
     '.cape-rail.is-inv{--trk:' + CFG.trkDark + ';--fil:' + CFG.snow + '}',
 
-    /* puntatore vicino: il filo si allarga e il numero cresce */
-    '.cape-rail.is-near{--w:' + CFG.wHover + 'px;--n:' + CFG.numHover + 'px}',
+    /* puntatore vicino: il filo si allarga */
+    '.cape-rail.is-near{--w:' + CFG.wHover + 'px}',
 
     /* la zona sensibile e' trasparente ai click finche' il puntatore non
        entra davvero nei pochi px di bordo: cosi' non ruba mai un click a
@@ -109,14 +89,10 @@
     '.cape-rail__zone{position:fixed;right:0;top:0;bottom:0;width:' + CFG.zone + 'px;pointer-events:none;touch-action:none}',
     '.cape-rail.is-near .cape-rail__zone{pointer-events:auto}',
 
-    /* Il filo. La maschera ci apre il buco in cui passa il numero: la
-       scrive paint() a ogni frame e vale per il grigio e per il nero
-       insieme, perche' il nero e' dentro questo elemento. */
+    /* Il filo */
     '.cape-rail__trk{',
       'position:fixed;right:var(--x);top:var(--in);bottom:var(--in);',
       'width:var(--w);background:var(--trk);overflow:hidden;',
-      '-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;',
-      '-webkit-mask-size:100% 100%;mask-size:100% 100%;',
       'transition:width ' + snap + ',background-color ' + fade + ';',
     '}',
 
@@ -125,20 +101,6 @@
     '.cape-rail__fil{',
       'position:absolute;left:0;top:0;width:100%;height:0;',
       'background:var(--fil);transition:background-color ' + fade + ';',
-    '}',
-
-    /* Il numero: dritto, centrato sul filo. Larghezza fissa su quella di
-       "100%", cosi' passando da 9% a 10% non si sposta di mezzo carattere. */
-    '.cape-rail__num{',
-      'position:fixed;top:0;',
-      'right:calc(var(--x) + var(--w) / 2);',
-      'transform:translateX(50%);',
-      'width:var(--numW);text-align:center;',
-      'font-family:' + CFG.font + ';font-weight:400;',
-      'font-size:var(--n);line-height:1;',
-      'letter-spacing:' + CFG.track + ';font-variant-numeric:tabular-nums;',
-      'color:var(--fil);white-space:nowrap;',
-      'transition:color ' + fade + ',font-size ' + snap + ',right ' + snap + ',width ' + snap + ';',
     '}'
   ].join('');
 
@@ -158,18 +120,16 @@
      ==================================================================== */
   var rail = document.createElement('div');
   rail.className = 'cape-rail';
-  rail.setAttribute('aria-hidden', 'true');   /* la percentuale e' un doppione
-                                                 dello scroll, che lo screen
-                                                 reader conosce gia' */
+  rail.setAttribute('aria-hidden', 'true');   /* e' un doppione dello scroll,
+                                                 che lo screen reader conosce
+                                                 gia' */
   rail.innerHTML =
     '<div class="cape-rail__zone"></div>' +
-    '<div class="cape-rail__trk"><div class="cape-rail__fil"></div></div>' +
-    '<div class="cape-rail__num">0%</div>';
+    '<div class="cape-rail__trk"><div class="cape-rail__fil"></div></div>';
 
   var zone  = rail.querySelector('.cape-rail__zone');
   var track = rail.querySelector('.cape-rail__trk');
   var fill  = rail.querySelector('.cape-rail__fil');
-  var num   = rail.querySelector('.cape-rail__num');
 
   function mount() {
     document.body.appendChild(rail);
@@ -180,31 +140,13 @@
   /* ====================================================================
      GEOMETRIA
      ==================================================================== */
-  var geo  = { top: 0, len: 1, x: 0 };
-  var numH = 12;   /* altezza della riga del numero */
-  var numW = 30;   /* larghezza fissata su "100%"   */
+  var geo = { top: 0, len: 1, x: 0 };
 
   function measure() {
     var r = track.getBoundingClientRect();
     geo.top = r.top;
     geo.len = r.height || 1;
     geo.x   = r.left + r.width / 2;
-  }
-
-  /* La larghezza del numero e' fissata sulla stringa piu' lunga che puo'
-     capitare, "100%". Se la lasciassimo libera, il box cambierebbe misura
-     passando da "9%" a "10%" e il numero, essendo centrato, scivolerebbe di
-     mezzo carattere a ogni decina. */
-  function measureNum() {
-    var prev = num.textContent;
-    num.style.width = 'auto';
-    num.textContent = '100%';
-    var r = num.getBoundingClientRect();
-    numW = Math.ceil(r.width) || 30;
-    numH = Math.ceil(r.height) || 12;
-    num.style.width = '';
-    num.textContent = prev;
-    rail.style.setProperty('--numW', numW + 'px');
   }
 
   function maxScroll() {
@@ -276,41 +218,11 @@
 
   /* ====================================================================
      DISEGNO
-     Il buco nel filo comincia esattamente dove finisce il nero: il nero
-     scende, si ferma, e subito sotto c'e' il numero. Quando il buco
-     arriverebbe a sporgere dal fondo si blocca li', e il nero da quel punto
-     in poi continua a crescere sotto il numero — dove pero' la maschera lo
-     cancella, quindi il numero resta leggibile fino al 100%.
      ==================================================================== */
-  var shown = -1;
   var lastProbe = 0;
 
   function paint() {
-    var p  = progress();
-    var L  = geo.len;
-    var fh = p * L;
-
-    fill.style.height = fh + 'px';
-
-    var gapH = numH + CFG.pad * 2;
-    var top  = fh;
-    var lim  = L - gapH;
-    if (lim < 0) lim = 0;               /* filo piu' corto del numero */
-    if (top > lim) top = lim;
-    if (top < 0)   top = 0;
-    var bot = top + gapH;
-
-    var g = 'linear-gradient(to bottom,' +
-            '#000 0,#000 ' + top + 'px,' +
-            'rgba(0,0,0,0) ' + top + 'px,rgba(0,0,0,0) ' + bot + 'px,' +
-            '#000 ' + bot + 'px,#000 100%)';
-    track.style.webkitMaskImage = g;
-    track.style.maskImage = g;
-
-    num.style.top = (geo.top + top + CFG.pad) + 'px';
-
-    var pc = Math.round(p * 100);
-    if (pc !== shown) { num.textContent = pc + '%'; shown = pc; }
+    fill.style.height = (progress() * geo.len) + 'px';
 
     /* La sonda del fondo costa tre hit-test: a 60fps, su una pagina che sta
        gia' animando il rig orizzontale e il ponte, si sente. La transizione
@@ -390,9 +302,9 @@
     if (n === near) return;
     near = n;
     rail.classList.toggle('is-near', n);
-    /* il corpo del numero cambia con l'hover, quindi cambiano anche le sue
-       misure: vanno riprese, se no il buco nel filo non gli sta piu' dietro */
-    requestAnimationFrame(function () { measure(); measureNum(); paint(); });
+    /* il filo si allarga, quindi il suo centro si sposta: le sonde del fondo
+       partono da li' e vanno riprese */
+    requestAnimationFrame(function () { measure(); paint(); });
   }
   function onLeave() {
     if (!near) return;
@@ -410,7 +322,7 @@
      ==================================================================== */
   var rT = null;
   function relayout() {
-    measure(); measureNum(); paint();
+    measure(); paint();
   }
   function debounced() {
     clearTimeout(rT);
