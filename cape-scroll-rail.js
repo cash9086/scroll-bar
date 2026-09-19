@@ -481,10 +481,25 @@
   /* ====================================================================
      TRASCINAMENTO
      ==================================================================== */
+  /* ====================================================================
+     IL VOLANTE
+     Su questa pagina sei codici spostano lo scroll, e l'arbitro capeScroll
+     decide chi guida. Il trascinamento del binario vale MANO: e' l'utente
+     con il dito sopra, quindi passa davanti agli snap e ai muri e cede solo
+     a una correzione strutturale.
+
+     Si prenota una volta per tutto il trascinamento, non a ogni pixel: in
+     mezzo a una trascinata nessuno deve poter infilare una planata.
+     ==================================================================== */
+  var VOLANTE = 'binario-mano';
+
   function seek(clientY) {
     var p = (clientY - geo.top) / geo.len;
     p = p < 0 ? 0 : p > 1 ? 1 : p;
     var y = p * maxScroll();
+
+    if (window.capeScroll) { window.capeScroll.vaA(VOLANTE, y, { immediate: true }); return; }
+
     if (window.lenis && window.lenis.scrollTo) {
       try { window.lenis.scrollTo(y, { immediate: true, force: true }); return; }
       catch (e) { /* cade sul nativo */ }
@@ -496,6 +511,9 @@
 
   function onDown(e) {
     if (!CFG.drag) return;
+    /* Se il volante e' in mano a una correzione si lascia perdere: dura
+       pochi centesimi ed e' l'unica cosa che vale piu' del dito. */
+    if (window.capeScroll && !window.capeScroll.prendi(VOLANTE, window.capeScroll.MANO)) return;
     dragging = true;
     try { zone.setPointerCapture(e.pointerId); } catch (err) {}
     measure(); seek(e.clientY); tick();
@@ -505,6 +523,7 @@
   function onUp(e) {
     if (!dragging) return;
     dragging = false;
+    if (window.capeScroll) window.capeScroll.molla(VOLANTE);
     try { zone.releasePointerCapture(e.pointerId); } catch (err) {}
   }
 
