@@ -6,8 +6,14 @@ in sostituzione della scrollbar nativa del browser.
 Un filo di 1px, grigio chiaro, sul lato destro, che si allarga a 5px quando
 il puntatore si avvicina al bordo. Il progresso lo riempie di nero dall'alto.
 
-Su fondo chiaro il filo e' `#141416`, su fondo scuro `#ffffff`. Il filo si
-puo' trascinare per scorrere.
+Quando il documento si accorcia di colpo — la intro della Home che collassa —
+il nero non salta: percorre la strada che ha perso, e mentre la percorre le
+quattro lettere di CAPE compaiono in verticale sotto il suo orlo, una dopo
+l'altra, e si spengono quando si posa. Fuori dal ritiro non esistono: niente
+lettere, nessun buco nel filo, il binario e' un filo e basta.
+
+Su fondo chiaro filo e lettere sono `#141416`, su fondo scuro `#ffffff`. Il
+filo si puo' trascinare per scorrere.
 
 ## Uso
 
@@ -45,6 +51,14 @@ che cambi.
     w        : 1,       // spessore del filo a riposo, px
     wHover   : 5,       // spessore col puntatore vicino, px
     zone     : 30,      // larghezza della zona sensibile, px
+    lettere  : 'CAPE',  // la parola del ritiro; '' per non averla
+    num      : 10,      // corpo delle lettere, px
+    pad      : 6,       // aria fra l'orlo del nero e la prima lettera, px
+    salto    : 620,     // durata del riassorbimento, ms
+    stagger  : 55,      // ritardo fra una lettera e l'altra, ms
+    sogliaDoc: 0.5,     // schermate: sotto, il documento si e' solo
+                        // assestato e il valore si scrive e basta
+    sogliaP  : 0.02,    // progresso: sotto, non vale la pena animare
     mobile   : true,    // false: niente binario sotto i 992px,
                         // e li' torna la scrollbar nativa
     drag     : true     // false: niente trascinamento dell'asta
@@ -61,6 +75,23 @@ capeRail.destroy()  // toglie tutto e riaccende la scrollbar nativa
 ```
 
 ## Note
+
+**Il ritiro.** Il binario legge gia' l'altezza del documento a ogni fotogramma
+— gli serve per il progresso — quindi il salto se lo accorge da solo: nessun
+accordo da tenere in piedi con `section-intro`. Un cambio d'altezza oltre
+`sogliaDoc` apre una finestra di 250ms, e dentro quella finestra lo scarto fra
+dov'era il nero e dov'e' finito diventa l'animazione. La finestra serve perche'
+chi collassa una sezione fa due cose di fila — accorcia il documento e rimette
+in riga lo scroll — e fra le due puo' passare un fotogramma.
+
+Quello che si conserva e' lo **scarto**, non il valore: si scioglie lungo la
+curva del sito mentre il progresso vero continua a rispondere allo scroll, cosi'
+chi scorre durante il ritiro non se lo sente bloccare sotto le mani.
+
+Non scatta col trascinamento dell'asta, ne' entro 400ms da un ridimensionamento
+della finestra, ne' nei primi 1200ms di vita della pagina: li' l'altezza cambia
+per altri motivi. Con `prefers-reduced-motion` non scatta affatto e il valore si
+scrive diretto.
 
 **Lenis.** Il sito gira su Lenis sopra i 992px, fuori da Firefox e senza
 `prefers-reduced-motion`. Il binario si aggancia a `lenis.on('scroll')`,
@@ -81,6 +112,11 @@ finche' il puntatore non entra davvero nei 30px di bordo.
 **Cursore custom.** Il binario sta a `z-index:2147483000`, sotto `#capecur`
 (2147483647), e non imposta nessun `cursor`: il sito forza `cursor:none` su
 desktop e verrebbe comunque annullato.
+
+**Le lettere.** Il box di ogni lettera e' fissato sulla piu' larga della parola,
+misurata a runtime: essendo centrate sul filo, con la larghezza libera
+scivolerebbero di mezzo carattere l'una rispetto all'altra. Il buco nel filo si
+apre solo dove una lettera si vede davvero, e si richiude con lei.
 
 **Accessibilita'.** L'asta e' `aria-hidden`: e' un doppione dello scroll, che
 lo screen reader conosce gia'. `prefers-reduced-motion`
