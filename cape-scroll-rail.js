@@ -493,6 +493,11 @@
      ==================================================================== */
   var VOLANTE = 'binario-mano';
 
+  window.capePatti && capePatti.dichiara('binario di scroll', {
+    leggo: ['window.capeScroll', 'window.lenis',
+            ['data-hdr', '[data-hdr]', 'per sapere su che fondo sta il filo e scegliersi il colore']]
+  });
+
   function seek(clientY) {
     var p = (clientY - geo.top) / geo.len;
     p = p < 0 ? 0 : p > 1 ? 1 : p;
